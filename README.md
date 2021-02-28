@@ -1,0 +1,2 @@
+# jqinator
+ simple jquery paginator
