@@ -1,6 +1,6 @@
 $.fn.JQinator = $.fn.jqinator = function (options) {
     let settings = $.extend({
-        url: window.local.href, // [string] url for loading data
+        url: window.location.href, // [string] url for loading data
         type: 'GET', // [method] ajax method
         headers: {}, // [object] ajax headers
         page: 1, // [int] page number to load
@@ -11,7 +11,7 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
         paginationPerPage: "#perPageSelect", // [selector] pagination per page select
         perPage: 10, // [int] item load per page
         refresh: null, // [string|null] auto refresh rate for example: 1m, 5m, 1h, 1d
-        orderColumn: null, // [string] ordering column for server
+        orderColumn: 'id', // [string] ordering column for server
         orderDirection: "desc", // [desc|asc] ordering direction
         paginationList: [10, 20, 30, 50, 100], // [array] number of per pages
         paginationContainer: null, // [selector] pagination container
@@ -21,7 +21,7 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
         template: "#template", // [selector|html] template of item
         notFoundTemplate: '#notFoundTemplate', // [selector|html] data is empty show this template
         errorTemplate: '#errorTemplate', // [selector|html] if receive error in get date show this template
-        sendDataTemplate: '{page:<page>,search:"<search>",perpage:<perPage>,order:{column:"<orderCoulumn>",direction:"<orderDirection>"}}', // [json] template of sending data to serverside
+        sendDataTemplate: '{"page":<page>,"search":"<search>","perpage":<perPage>,"order":{"column":"<orderColumn>","direction":"<orderDirection>"}}', // [json] template of sending data to serverside
         receiveDataSelector: 'data',
         receiveDataCountSelector: 'meta.total',
         beforeSendRequest: function () {
@@ -97,9 +97,11 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
         storage.set(settings.localStorageKey, temp_data);
         let data = settings.sendDataTemplate;
         $.each(temp_data, function (key, value) {
-            let regex = new RegExp('{' + key + '}', "igm");
+            let regex = new RegExp('<' + key + '>', "igm");
             data = data.replace(regex, value);
         })
+        let regex = new RegExp('<(.*)>', "igm");
+        data = data.replace(regex, '');
         data = JSON.parse(data);
 
         $.ajax({
@@ -112,6 +114,7 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
             success: function (response) {
                 settings.success(response);
                 container.html('');
+                response = JSON.parse(response);
                 let d = response;
                 total = response;
                 $.each(settings.receiveDataSelector.split("."), function (index, item) {
@@ -135,17 +138,25 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
                         $.each(d, function (index, item) {
                             let temp = settings.template.getString();
                             $.each(item, function (key, value) {
-                                if (typeof value === 'object' && value !== null) {
-                                    $.each(value, function (k, v) {
-                                        let regex = new RegExp('{' + key + '.' + k + '}', "igm");
-                                        temp = temp.replace(regex, v == null ? '-' : v);
-                                    })
-                                } else {
+                                if (typeof value !== 'object') {
                                     let regex = new RegExp('{' + key + '}', "igm");
                                     temp = temp.replace(regex, value == null ? '-' : value);
                                 }
-
                             })
+                            let regex = new RegExp('{(.+\.*)+}', "igm");
+                            $.each(temp.match(regex), function (index, i) {
+                                let indices = i.replace("{", "").replace("}", "").split(".")
+                                let temp_data = data;
+                                for (let i = 0; i < indices.length; i++) {
+                                    if (typeof temp_data[indices[i]] == "undefined" ){
+                                        return null;
+                                    }else{
+                                        temp_data = temp_data[indices[i]];
+                                    }
+                                }
+                                let re = new RegExp(i, "igm");
+                                temp = temp.replace(re, temp_data);
+                            });
                             temp = $(temp);
                             $.each(temp.find('[data-if]'), function () {
                                 let self = $(this);
@@ -211,22 +222,26 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
     }
 
     $.fn.getString = function () {
-        return (typeof this == 'string' && this.charAt(0) !== "#") ? this : $(this).clone()
+        return (typeof this == 'string' && this.charAt(0) !== "#") ? this : $(this).clone().html()
+    }
+
+    $.fn.innerHtml = function () {
+        return $(this).clone()[0].outerHTML
     }
 
     /*function getHtmlAsString(selector) {
         return (typeof selector == 'string' && selector.charAt(0) !== "#") ? selector : $(selector).html()
     }*/
     let pc = $(settings.paginationContainer);
-    let select = $(settings.paginationPerPage);
+    let select = $(document).find(settings.paginationPerPage);
     let btn = null;
     if (settings.paginationContainer != null) {
         btn = {
-            number: $(pc.find('[btn-number]').clone()).addClass('jginator-page jqinator-btn'),
-            first: $(pc.find('[btn-first]').clone()).addClass('jginator-first jqinator-btn'),
-            last: $(pc.find('[btn-last]').clone()).addClass('jginator-last jqinator-btn'),
-            next: $(pc.find('[btn-next]').clone()).addClass('jginator-next jqinator-btn'),
-            prev: $(pc.find('[btn-prev]').clone()).addClass('jginator-prev jqinator-btn'),
+            number: $(pc.find('[btn-number]').innerHtml()).addClass('jqinator-page jqinator-btn'),
+            first: $(pc.find('[btn-first]').innerHtml()).addClass('jqinator-first jqinator-btn'),
+            last: $(pc.find('[btn-last]').innerHtml()).addClass('jqinator-last jqinator-btn'),
+            next: $(pc.find('[btn-next]').innerHtml()).addClass('jqinator-next jqinator-btn'),
+            prev: $(pc.find('[btn-prev]').innerHtml()).addClass('jqinator-prev jqinator-btn'),
         };
     }
     select.addClass('jqinator-per-page-select').find('option').remove();
@@ -241,7 +256,7 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
     function paginate() {
         let start = (settings.page - 1) * settings.perPage;
         let end = settings.page * settings.perPage;
-        let str = settings.paginationTextContainer.getString();
+        let str = $(settings.paginationTextContainer).getString();
         str = str.replace('{start}', start + 1 + "")
             .replace('{end}', (end < total ? end : total) + "")
             .replace('{total}', total + "");
@@ -264,19 +279,18 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
                 }
                 pc.append(temp)
             }
-
             if (page > 2) {
-                pc.append($(btn.number.clone().replace('{number}', page - 2)).attr('data-page', page - 2));
+                pc.append($(btn.number.innerHtml().replace('{number}', page - 2)).attr('data-page', page - 2));
             }
             if (page > 1) {
-                pc.append($(btn.number.clone().replace('{number}', page - 1)).attr('data-page', page - 1));
+                pc.append($(btn.number.innerHtml().replace('{number}', page - 1)).attr('data-page', page - 1));
             }
-            pc.append($(btn.number.clone().replace('{number}', page)).addClass('active').attr('data-page', page))
+            pc.append($(btn.number.innerHtml().replace('{number}', page)).addClass('active').attr('data-page', page))
             if (page + 1 <= pages) {
-                pc.append($(btn.number.clone().replace('{number}', page + 1)).attr('data-page', page + 1));
+                pc.append($(btn.number.innerHtml().replace('{number}', page + 1)).attr('data-page', page + 1));
             }
             if (page + 2 <= pages) {
-                pc.append($(btn.number.clone().replace('{number}', page + 2)).attr('data-page', page + 2));
+                pc.append($(btn.number.innerHtml().replace('{number}', page + 2)).attr('data-page', page + 2));
             }
 
             if (btn.next) {
@@ -298,8 +312,8 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
         }
     }
 
-    pc.find('.jqinator-btn').click(function () {
-        let self = $(this);
+    pc.on('click','.jqinator-btn',function (e) {
+        let self = $(e.currentTarget);
         if (!self.hasClass('disabled') && !self.hasClass('active')) {
             if (self.hasClass('jqinator-first'))
                 settings.page = 1;
@@ -372,8 +386,7 @@ $.fn.JQinator = $.fn.jqinator = function (options) {
         }
     };
 }
-
-$.each(".jqinator", function () {
+$.each($(".jqinator"), function () {
     let self = $(this);
     let options = self.data();
     let template = self.find('template.item')

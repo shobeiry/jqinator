@@ -8,24 +8,37 @@
 <body>
 
 <div>
-    <div class="jqinator">
+    <table border="1">
+        <thead>
+        <tr>
+            <th>id</th>
+            <th>name</th>
+            <th>guid</th>
+        </tr>
+        </thead>
+        <tbody class="jqinator" data-pagination-per-page="#perpage" data-pagination-container="#paginationContainer" data-url="data.php">
         <template class="item">
-
+            <tr>
+                <td>{id}</td>
+                <td>{name}</td>
+                <td>{guid}</td>
+            </tr>
         </template>
         <template class="notfound"></template>
         <template class="error"></template>
-    </div>
+        </tbody>
+    </table>
 
     <div id="paginationTextContainer"></div>
     <div>
         <select id="perpage"></select>
     </div>
     <div id="paginationContainer">
-        <a href="javascript:void(0)" btn-number><span>{number}</span></a>
-        <a href="javascript:void(0)" btn-next> > </a>
-        <a href="javascript:void(0)" btn-prev> < </a>
-        <a href="javascript:void(0)" btn-first> << </a>
-        <a href="javascript:void(0)" btn-last> >> </a>
+        <a href="javascript:void(0)" btn-number>|<span>{number}</span>|</a>
+        <a href="javascript:void(0)" btn-next> |>| </a>
+        <a href="javascript:void(0)" btn-prev> |<| </a>
+        <a href="javascript:void(0)" btn-first> |<<| </a>
+        <a href="javascript:void(0)" btn-last> |>>| </a>
     </div>
 </div>
 
